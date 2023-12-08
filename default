@@ -1,0 +1,104 @@
+#load balance
+
+upstream redblue {
+	server 127.0.0.1:8081;
+	server 127.0.0.1:8082;
+	}
+
+
+#red server
+
+server {
+	 listen 8081;
+	  root /var/www/html/;
+	   index red.html;
+	    server_name localhost;
+		}
+
+	
+#blue server
+
+server {
+	 listen 8082;
+	  root /var/www/html/;
+	   index blue.html; 
+	    server_name localhost;
+	}
+
+#custom log file
+
+	log_format custom '$remote_addr - $remote_user '
+                   '"$request" $status $body_bytes_sent ' 
+                   '"$http_referer" "$http_user_agent" '
+                   'proxied to: $proxy_host ';
+
+#main bibaboba server
+server {
+
+	root /var/www/html/;
+	 index index.html;
+          server_name bibaboba.onthewifi.com; # managed by Certbot
+	
+	 location /secondpage/ {
+          alias /var/www/html/secondpage/;
+           index second.html;
+        }
+	 
+	location ~\.php$ {
+	  proxy_pass http://localhost:8080;
+	}
+
+	location /music {
+	  alias /var/www/html/music;
+	   add_header Content-Disposition 'attachment; filename="serega-pirat.mp3"';
+	    index serega-pirat.mp3;
+	}
+
+	location /secondserver/ {
+	 return 500 https://www.youtube.com/;
+	}
+	
+	location /redblue/ {
+	 proxy_pass http://redblue;
+	 proxy_set_header Host $host;
+	 proxy_set_header X-Real-ip $remote_addr; 
+	}
+
+	location /images {
+	 alias /var/www/html/images;
+	 try_files $uri =404;
+	}
+
+
+	location ~* \.(jpg)$ {
+	 root /var/www/html/images/;
+	  image_filter rotate 180;
+	}
+
+	location /cpu/ {
+	 alias /var/www/html/cpu_script/;
+	 index cpu.html;
+	}
+
+	access_log /var/log/nginx/access.log custom;
+
+#ssl certificate
+
+    listen [::]:443 ssl ipv6only=on; # managed by Certbot
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/bibaboba.onthewifi.com/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/bibaboba.onthewifi.com/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
+}
+server {
+    if ($host = bibaboba.onthewifi.com) {
+        return 301 https://$host$request_uri;
+	}				 # managed by Certbot
+
+
+	listen 80 ;
+    server_name bibaboba.onthewifi.com;
+    return 404;				 # managed by Certbot
+	}
